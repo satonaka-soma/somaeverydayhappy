@@ -1,15 +1,5 @@
-// React (UMD)
-const { useEffect, useMemo, useState } = React;
-
-/**
- * スタンプカード v10.4 完全版（UMD / GHP直置き）
- * - 背景テーマ4種: island / notebook / wood / night（白抜け防止＆可読色最適化）
- * - 「作成」ボタンでカード生成、カード削除・ご褒美削除
- * - 各カード下に「交換可能なご褒美」＋「交換！」（使用可能ptから即時引落＝全体ポイント基準）
- * - ガチャ（1日1回）：ボーナス自動加算、中央配置、テーマ別で「回す！」のコントラスト最適化
- * - 休息日（当日/翌日不可）・連続日数・ストリーク演出・コンフェッティ
- * - localStorage 永続化（stampcard_v10 / stampcard_theme / stampcard_gacha / stampcard_points_spent / stampcard_redeem_hist）
- */
+// React UMD
+const { useState, useEffect, useMemo } = React;
 
 /* ========= utils ========= */
 const todayKey = () => new Date().toLocaleDateString("en-CA");
@@ -27,7 +17,7 @@ function generateMonth(date){
   return days;
 }
 
-/* ========= streak / specials ========= */
+/* ========= streak ========= */
 const STREAK_SPECIALS = [
   { n:30, icon:"party",   label:"30日連続!!", effect:"confetti" },
   { n:20, icon:"gem",     label:"20日連続!!" },
@@ -40,7 +30,7 @@ function computeStreakFromDate(stamps, restDays, dateKey){
   let s=0; const d0=new Date(dateKey);
   for(let i=0;i<500;i++){
     const d=new Date(d0); d.setDate(d0.getDate()-i); const k=keyOf(d);
-    const mark=!!stamps[k]; const rest=!!(restDays&&restDays[k]);
+    const mark=!!(stamps&&stamps[k]); const rest=!!(restDays&&restDays[k]);
     if(mark||rest) s++; else break;
   }
   return s;
@@ -78,15 +68,16 @@ const keyframesCSS=`
 function IslandBackground(){
   return (
     <div className="pointer-events-none absolute inset-0 -z-10">
-      <div className="absolute inset-0" style={{background:"linear-gradient(to bottom,#bae6fd,#e0f2fe 40%,#d1fae5 100%)"}}/>
-      <div className="absolute bottom-0 left-0 right-0 h-40" style={{background:"linear-gradient(to top,#6ee7b7,#a7f3d0)"}}/>
+      <div className="absolute inset-0 bg-gradient-to-b from-green-100 via-green-50 to-emerald-100"/>
+      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-emerald-300 to-emerald-200"
+           style={{borderTopLeftRadius:"50%",borderTopRightRadius:"50%"}}/>
     </div>
   );
 }
 function NightBackground(){
   const stars=Array.from({length:120}).map((_,i)=>i);
   return (
-    <div className="pointer-events-none absolute inset-0 -z-10" style={{background:"linear-gradient(to bottom,#1e1b4b,#0f172a 60%,#000)"}}>
+    <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-indigo-950 via-slate-900 to-black">
       {stars.map(i=><span key={i} className="absolute rounded-full bg-white" style={{width:2,height:2,top:`${Math.random()*100}%`,left:`${Math.random()*100}%`,opacity:.8}}/>)}
     </div>
   );
@@ -108,15 +99,15 @@ function Background({theme}){
   return <IslandBackground/>;
 }
 
-/* ========= helpers: theme vars ========= */
+/* ========= theme vars ========= */
 function useThemeVars(theme){
   return useMemo(()=>{
     if(theme==="night"){
-      return { style:{ "--fg":"#f8fafc","--fgMuted":"#cbd5e1","--cardBg":"rgba(30,41,59,.6)","--chipBg":"rgba(15,23,42,.5)","--accent":"#22d3ee" },
-               gachaText:"#ffffff", gachaShadow:"0 0 10px rgba(0,0,0,.6)" };
+      return { style:{ "--fg":"#0f172a","--fgMuted":"#475569","--cardBg":"rgba(255,255,255,.85)","--chipBg":"rgba(255,255,255,.8)","--accent":"#059669" },
+               gachaText:"#0f172a", gachaShadow:"0 1px 2px rgba(255,255,255,.7)" };
     }
     if(theme==="wood"){
-      return { style:{ "--fg":"#3a2b25","--fgMuted":"#6b5a52","--cardBg":"rgba(255,255,255,.82)","--chipBg":"rgba(255,255,255,.75)","--accent":"#10b981" },
+      return { style:{ "--fg":"#3a2b25","--fgMuted":"#6b5a52","--cardBg":"rgba(255,255,255,.86)","--chipBg":"rgba(255,255,255,.8)","--accent":"#10b981" },
                gachaText:"#231815", gachaShadow:"0 1px 2px rgba(255,255,255,.6), 0 0 8px rgba(0,0,0,.15)" };
     }
     if(theme==="notebook"){
@@ -130,7 +121,7 @@ function useThemeVars(theme){
   },[theme]);
 }
 
-/* ========= Confetti ========= */
+/* ========= confetti ========= */
 function ConfettiOverlay(){
   const pieces=Array.from({length:80}).map((_,i)=>i);
   return (
@@ -306,298 +297,71 @@ function App(){
             <div className="text-xs mt-2 text-center" style={{color:"var(--fgMuted)"}}>ポイント：スタンプ + ボーナス（結果は自動加算）</div>
           </div>
 
-          <NewCardBox {...{createByButton:new Function(),theme}} /> {/* ダミー防止：Babel最適化回避 */}
-
           <div className="rounded-2xl shadow-sm border p-4 mb-6" style={{background:"var(--cardBg)"}}>
             <div className="font-semibold mb-3" style={{color:"var(--fg)"}}>新しいスタンプカード</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="名前（例：英語シャドーイング）" className="px-3 py-2 rounded-xl border w-full" style={{background:"var(--chipBg)",color:"var(--fg)"}}/>
-              <input value={newRule} onChange={e=>setNewRule(e.target.value)} placeholder="ルール（例：1日15分やったら押す）" className="px-3 py-2 rounded-xl border w-full" style={{background:"var(--chipBg)",color:"var(--fg)"}}/>
-              <button onClick={createByButton} className="px-4 py-2 rounded-xl" style={{background:"var(--accent)",color:"#fff"}}>作成</button>
+              <input placeholder="名前（例：英語シャドーイング）" className="px-3 py-2 rounded-xl border w-full" style={{background:"var(--chipBg)",color:"var(--fg)"}}/>
+              <input placeholder="ルール（例：1日15分やったら押す）" className="px-3 py-2 rounded-xl border w-full" style={{background:"var(--chipBg)",color:"var(--fg)"}}/>
+              <button className="px-4 py-2 rounded-xl" style={{background:"var(--accent)",color:"#fff"}}>作成</button>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
             <div className="flex items-center gap-2">
-              <button onClick={()=>setCurrentMonth(new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1))} className="h-9 px-3 rounded-xl border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>← 前月</button>
+              <button className="h-9 px-3 rounded-xl border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>← 前月</button>
               <div className="font-semibold" style={{color:"var(--fg)"}}>{currentMonth.getFullYear()}年 {currentMonth.getMonth()+1}月</div>
-              <button onClick={()=>setCurrentMonth(new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1))} className="h-9 px-3 rounded-xl border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>翌月 →</button>
-              <button onClick={()=>setCurrentMonth(new Date())} className="h-9 px-3 rounded-xl border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>今月</button>
+              <button className="h-9 px-3 rounded-xl border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>翌月 →</button>
+              <button className="h-9 px-3 rounded-xl border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>今月</button>
             </div>
             <div className="text-sm rounded-xl px-3 py-1.5 border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>
               総pt: <b className="text-lg align-middle">{totalPoints}</b> / 使用済: {pointsSpent} / 使用可能: <b className="text-lg align-middle" style={{color:"var(--accent)"}}>{availablePoints}</b>
             </div>
           </div>
 
-          <div className="space-y-6">
-            {habits.length===0 && (<div className="text-sm rounded-xl p-3 inline-block" style={{background:"var(--chipBg)",color:"var(--fg)"}}>まずカードを作成してください。</div>)}
-            {habits.map(h=>(
-              <HabitCard key={h.id}
-                habit={h}
-                days={days}
-                currentMonth={currentMonth}
-                onStampToday={()=>stampToday(h.id)}
-                onToggleRest={(d)=>toggleRest(h.id,d)}
-                onDeleteCard={()=>deleteHabit(h.id)}
-                availablePoints={availablePoints}
-                onRedeem={(idx)=>redeemFromCard(h.id,idx)}
-              />
-            ))}
+          {/* ここからカレンダー（縦長対策として .aspect-square が効く） */}
+          <div className="rounded-3xl border shadow-sm overflow-hidden" style={{background:"var(--cardBg)"}}>
+            <div className="p-4">
+              <div className="grid grid-cols-7 gap-1 text-xs mb-1 font-medium" style={{color:"var(--fg)"}}>
+                {["月","火","水","木","金","土","日"].map(w=><div key={w} className="text-center">{w}</div>)}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {generateMonth(currentMonth).map((d,idx)=>{
+                  const k=keyOf(d);
+                  const marked=false, rest=false;
+                  const isToday=k===todayKey();
+                  const isOtherMonth=d.getMonth()!==currentMonth.getMonth();
+                  const special=null;
+                  const iconKey=marked?NORMAL_ICONS[idx%NORMAL_ICONS.length]:null;
+                  return (
+                    <div key={k} className="relative">
+                      <button
+                        className={`relative w-full aspect-square rounded-2xl border flex items-center justify-center select-none ${isOtherMonth?'opacity-60':''} ${isToday?'ring-2':''}`}
+                        style={{
+                          background: marked? "rgba(16,185,129,.92)": (rest? "rgba(16,185,129,.10)":"rgba(16,185,129,.12)"),
+                          borderColor: marked? "#065f46":"rgba(16,185,129,.35)",
+                          color: marked? "#fff":"var(--fg)"
+                        }}
+                      >
+                        <span className="absolute top-1 left-1 text-[12px]" style={{opacity: marked ? .9 : .8}}>{d.getDate()}</span>
+                        {iconKey ? (
+                          <div className={marked?"animate-sparkle":""}>{React.createElement(Svg[iconKey],{className:"w-10 h-10"})}</div>
+                        ) : (!rest && <Svg.leaf className="w-8 h-8" style={{opacity:.2}}/>)}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
+          {/* カレンダーここまで */}
+
         </main>
-      ) : view==="shop" ? (
-        <ShopView
-          totalPoints={totalPoints}
-          availablePoints={availablePoints}
-          pointsSpent={pointsSpent}
-          setPointsSpent={setPointsSpent}
-          redeemHistory={redeemHistory}
-          redeem={(label,cost)=>{
-            if(availablePoints<cost){ alert("ポイントが足りません"); return; }
-            setPointsSpent(ps=>ps+cost);
-            setRedeemHistory(prev=>[{id:uid(),at:new Date().toISOString(),label,cost},...prev].slice(0,200));
-            setBanner({text:`「${label}」を受け取り！`,iconKey:"party",effect:"confetti"}); setTimeout(()=>setBanner(null),2000);
-          }}
-        />
-      ) : (
-        <RewardSettings habits={habits} addReward={addReward} removeReward={removeReward}/>
-      )}
+      ) : null}
 
       <footer className="relative z-10 max-w-5xl mx-auto px-4 py-8 text-xs" style={{color:"var(--fgMuted)"}}>
         ローカル保存（localStorage）。端末を変えると共有されません。
       </footer>
     </div>
-  );
-}
-
-// ダミー：Babel の不要最適化を避けるための空コンポーネント（実害なし）
-function NewCardBox(){ return null; }
-
-/* ========= sub components ========= */
-function HabitCard({habit,days,currentMonth,onStampToday,onToggleRest,onDeleteCard,availablePoints,onRedeem}){
-  const {name,rule,stamps={},restDays={},rewards=[]}=habit;
-  const total=Object.values(stamps).filter(Boolean).length;
-  const streakToday=useMemo(()=>computeStreakFromDate(stamps,restDays,todayKey()),[stamps,restDays]);
-
-  const rewardStatuses=useMemo(()=>(
-    (rewards||[]).map(r=>({label:r.label,threshold:r.threshold,can:total>=r.threshold,remain:Math.max(0,r.threshold-total)})).sort((a,b)=>a.threshold-b.threshold)
-  ),[rewards,total]);
-
-  const exchangeable=(rewards||[]).map((r,i)=>({...r,i})).filter(r=>availablePoints>=r.threshold);
-
-  return (
-    <div className="rounded-3xl border shadow-sm overflow-hidden" style={{background:"var(--cardBg)"}}>
-      <div className="p-4 flex items-center gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="text-lg font-semibold truncate flex items-center gap-2" style={{color:"var(--fg)"}}>
-            <span className="inline-block px-2 py-0.5 rounded-full text-xs" style={{background:"rgba(16,185,129,.15)",color:"var(--accent)"}}>
-              連続 {streakToday} 日
-            </span>
-            <span className="truncate">{name}</span>
-          </div>
-          <div className="text-sm truncate" style={{color:"var(--fgMuted)"}}>{rule}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-xs" style={{color:"var(--fgMuted)"}}>通算</div>
-          <div className="text-2xl font-extrabold" style={{color:"var(--fg)"}}>{total}</div>
-        </div>
-        <button onClick={onStampToday} className="px-4 py-2 rounded-xl border ml-2"
-          style={{background: (stamps?.[todayKey()]?"var(--accent)":"var(--chipBg)"), color:(stamps?.[todayKey()]?"#fff":"var(--fg)")}}>
-          {stamps?.[todayKey()]?"できた！✓":"できた！"}
-        </button>
-        <button onClick={onDeleteCard} className="ml-2 px-2 py-1 text-xs rounded-lg border hover:opacity-80" style={{color:"#dc2626",background:"var(--chipBg)"}}>削除</button>
-      </div>
-
-      <div className="px-4 pb-4">
-        <div className="rounded-3xl p-3 border shadow-inner" style={{background:"linear-gradient(135deg,#f7f5ef,#efe9dc)"}}>
-          <div className="grid grid-cols-7 gap-1 text-[12px] mb-1 font-medium" style={{color:"var(--fg)"}}>
-            {["月","火","水","木","金","土","日"].map(w=><div key={w} className="text-center">{w}</div>)}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {days.map((d,idx)=>{
-              const k=keyOf(d);
-              const marked=!!stamps[k];
-              const rest=!!restDays[k];
-              const isToday=k===todayKey();
-              const restAllowed=daysDiff(todayKey(),k)<=-2;
-              const isOtherMonth=d.getMonth()!==currentMonth.getMonth();
-              const streak=marked||rest?computeStreakFromDate(stamps,restDays,k):0;
-              const special=STREAK_SPECIALS.find(s=>s.n===streak)||null;
-              const iconKey=special?special.icon:marked?NORMAL_ICONS[idx%NORMAL_ICONS.length]:null;
-
-              return (
-                <div key={k} className="relative">
-                  <button
-                    title={isToday?`${fmtJP(k)} — 今日だけ押せます`:restAllowed?`${fmtJP(k)} — 右下「休」で休息切替`:`${fmtJP(k)} — 休息は二日後以降`}
-                    onClick={()=>isToday && onStampToday()}
-                    onContextMenu={(e)=>{e.preventDefault(); if(restAllowed) onToggleRest(k);}}
-                    className={`relative w-full aspect-square rounded-2xl border flex items-center justify-center select-none ${isOtherMonth?'opacity-60':''} ${isToday?'ring-2':''}`}
-                    style={{
-                      background: marked? "rgba(16,185,129,.92)": (rest? "rgba(16,185,129,.10)":"rgba(16,185,129,.12)"),
-                      borderColor: marked? "#065f46":"rgba(16,185,129,.35)",
-                      color: marked? "#fff":"var(--fg)"
-                    }}
-                  >
-                    <span className="absolute top-1 left-1 text-[12px]" style={{opacity:marked?.9:.8}}>{d.getDate()}</span>
-
-                    {iconKey ? (
-                      <div className={marked?"animate-sparkle":""}>{React.createElement(Svg[iconKey],{className:"w-10 h-10"})}</div>
-                    ) : (!rest && <Svg.leaf className="w-8 h-8" style={{opacity:.2}}/>)}
-
-                    {special && (
-                      <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-[10px] font-bold px-1 py-0.5 rounded-full border"
-                            style={{background:"rgba(251,191,36,.8)", color:"#7c2d12", borderColor:"#f59e0b"}}>
-                        {special.label}
-                      </span>
-                    )}
-
-                    {/* ★ 休息バッジ：超小型、セル右下に収める */}
-                    {rest && (
-                      <span className="absolute bottom-0.5 right-0.5 text-[9px] leading-none px-1 rounded border"
-                            style={{background:"rgba(255,255,255,.9)", color:"#0f172a", borderColor:"rgba(15,23,42,.15)"}}>
-                        休
-                      </span>
-                    )}
-
-                    {/* ★ 休息切替：当日/翌日以外のみ表示。ボタンも 1 マス内に収める */}
-                    {restAllowed && !isToday && (
-                      <button onClick={()=>onToggleRest(k)}
-                        className="absolute bottom-0.5 right-0.5 text-[9px] leading-none px-1 rounded border hover:opacity-90"
-                        style={{background:"rgba(255,255,255,.9)", color:"#0f172a", borderColor:"rgba(15,23,42,.15)"}}>
-                        休
-                      </button>
-                    )}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-4 rounded-2xl border p-2" style={{background:"var(--chipBg)"}}>
-            <div className="font-semibold text-sm mb-1" style={{color:"var(--fg)"}}>交換可能なご褒美</div>
-            {exchangeable.length===0 ? (
-              <div className="text-xs" style={{color:"var(--fgMuted)"}}>まだ交換可能なご褒美はありません。</div>
-            ) : (
-              <ul className="space-y-1">
-                {exchangeable.map(r=>(
-                  <li key={r.i} className="flex items-center justify-between text-sm" style={{color:"var(--fg)"}}>
-                    <span>{r.label}（{r.threshold}pt）</span>
-                    <button onClick={()=>onRedeem(r.i)} className="px-2 py-1 rounded-lg hover:opacity-90" style={{background:"var(--accent)",color:"#fff"}}>交換！</button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-        </div>
-      </div>
-
-      <div className="px-4 pb-4 text-sm" style={{color:"var(--fg)"}}>
-        <div className="mb-2">このカードのスタンプ数：<b>{total}</b></div>
-        {(rewards||[]).length===0 ? (
-          <div style={{color:"var(--fgMuted)"}}>ご褒美は未設定です。「ごほうびせってい」から追加してください。</div>
-        ) : (
-          <ul className="space-y-1">
-            {rewardStatuses.map((rs,i)=>(
-              <li key={i} className="flex items-center justify-between">
-                <span>{rs.label}（{rs.threshold}スタンプ）</span>
-                {rs.can ? <span style={{color:"var(--accent)",fontWeight:600}}>交換可能！</span> : <span style={{color:"var(--fgMuted)"}}>あと {rs.remain} スタンプ！</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ShopView({totalPoints,availablePoints,pointsSpent,setPointsSpent,redeemHistory,redeem}){
-  const [label,setLabel]=useState(""); const [cost,setCost]=useState(10);
-  return (
-    <main className="relative z-10 max-w-5xl mx-auto px-4 py-6">
-      <div className="rounded-2xl shadow-sm border p-4 mb-6 grid md:grid-cols-2 gap-4" style={{background:"var(--cardBg)",color:"var(--fg)"}}>
-        <div>
-          <div className="font-semibold">ご褒美ポイント</div>
-          <div className="mt-1">総pt: <b className="text-xl align-middle">{totalPoints}</b> / 使用済: {pointsSpent} / 使用可能: <b className="text-xl align-middle" style={{color:"var(--accent)"}}>{availablePoints}</b></div>
-          <div className="text-xs mt-1" style={{color:"var(--fgMuted)"}}>ポイント = スタンプ数 + ガチャボーナス</div>
-        </div>
-        <div className="flex items-center gap-2">
-          <input value={label} onChange={e=>setLabel(e.target.value)} placeholder="ご褒美名（例：映画、スパ、スイーツ）" className="px-3 py-2 rounded-xl border w-56" style={{background:"var(--chipBg)",color:"var(--fg)"}}/>
-          <input type="number" min={1} value={cost} onChange={e=>setCost(parseInt(e.target.value||"0",10))} placeholder="ポイント" className="px-3 py-2 rounded-xl border w-28" style={{background:"var(--chipBg)",color:"var(--fg)"}}/>
-          <button onClick={()=>redeem(label||"ご褒美",cost)} className="px-4 py-2 rounded-xl hover:opacity-90" style={{background:"var(--accent)",color:"#fff"}}>受け取る</button>
-        </div>
-      </div>
-
-      <div className="rounded-2xl shadow-sm border p-4" style={{background:"var(--cardBg)",color:"var(--fg)"}}>
-        <div className="font-semibold mb-2">受け取り履歴</div>
-        {redeemHistory.length===0 ? (
-          <div className="text-sm" style={{color:"var(--fgMuted)"}}>まだ履歴はありません。</div>
-        ) : (
-          <ul className="space-y-1 text-sm">
-            {redeemHistory.map(rec=>(
-              <li key={rec.id} className="flex items-center justify-between border-b py-1" style={{borderColor:"rgba(15,23,42,.08)"}}>
-                <span>{fmtJP(rec.at)} — {rec.label}</span>
-                <span style={{color:"var(--fgMuted)"}}>-{rec.cost} pt</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </main>
-  );
-}
-
-function RewardSettings({habits,addReward,removeReward}){
-  const [selected,setSelected]=useState(habits[0]?.id||null);
-  const [label,setLabel]=useState(""); const [threshold,setThreshold]=useState(10);
-  const h=habits.find(x=>x.id===selected);
-  useEffect(()=>{ if(!habits.find(x=>x.id===selected)) setSelected(habits[0]?.id||null); },[habits,selected]);
-
-  return (
-    <main className="relative z-10 max-w-5xl mx-auto px-4 py-6">
-      <div className="rounded-2xl shadow-sm border p-4 mb-4" style={{background:"var(--cardBg)",color:"var(--fg)"}}>
-        <div className="font-semibold mb-2">ごほうびせってい</div>
-        {habits.length===0 ? (
-          <div className="text-sm" style={{color:"var(--fgMuted)"}}>まずカードを作成してください。</div>
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <select className="px-2 py-1 rounded-lg border" value={selected||''} onChange={e=>setSelected(e.target.value)} style={{background:"var(--chipBg)",color:"var(--fg)"}}>
-                {habits.map(h=><option key={h.id} value={h.id}>{h.name}</option>)}
-              </select>
-              <input type="number" min={1} value={threshold} onChange={e=>setThreshold(parseInt(e.target.value||"0",10))} className="px-3 py-2 rounded-xl border w-36" placeholder="しきい値" style={{background:"var(--chipBg)",color:"var(--fg)"}}/>
-              <input value={label} onChange={e=>setLabel(e.target.value)} className="px-3 py-2 rounded-xl border w-72" placeholder="ご褒美名" style={{background:"var(--chipBg)",color:"var(--fg)"}}/>
-              <button onClick={()=>{ if(selected) addReward(selected,threshold,label||`${threshold}回達成ご褒美`); setLabel(""); }} className="px-4 py-2 rounded-xl" style={{background:"var(--accent)",color:"#fff"}}>追加</button>
-            </div>
-            {!h ? (
-              <div className="text-sm" style={{color:"var(--fgMuted)"}}>カードが選択されていません。</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left" style={{color:"var(--fgMuted)"}}>
-                      <th className="py-1">しきい値</th><th className="py-1">内容</th><th className="py-1">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(h.rewards||[]).sort((a,b)=>a.threshold-b.threshold).map((r,i)=>(
-                      <tr key={i} className="border-t" style={{borderColor:"rgba(15,23,42,.08)"}}>
-                        <td className="py-2">{r.threshold}</td>
-                        <td className="py-2">{r.label}</td>
-                        <td className="py-2">
-                          <button onClick={()=>removeReward(h.id,i)} className="px-2 py-1 rounded-lg border hover:opacity-85" style={{color:"#dc2626",background:"var(--chipBg)"}}>削除</button>
-                        </td>
-                      </tr>
-                    ))}
-                    {(!h.rewards||h.rewards.length===0) && (<tr><td colSpan={3} className="py-3" style={{color:"var(--fgMuted)"}}>まだご褒美がありません。</td></tr>)}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </main>
   );
 }
 
