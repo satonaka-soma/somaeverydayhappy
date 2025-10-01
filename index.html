@@ -1,59 +1,56 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>スタンプカード React版</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>スタンプカード React版</title>
 
-  <!-- React / ReactDOM (UMD) 必須 -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- GitHub Pages のサブパス対応 -->
+    <base href="/somadayoooo/">
 
-  <!-- Babel（JSXをブラウザで変換）必須：必ず先に読み込む -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- PWA（そのまま） -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="icon-512.png" sizes="512x512" />
+    <meta name="theme-color" content="#10b981" />
 
-  <style>
-    html,body{margin:0;padding:0;height:100%;background:#f3f4f6;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto}
-    #root{min-height:100vh;display:flex;align-items:center;justify-content:center;color:#475569}
-    .err{white-space:pre-wrap;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin:16px;max-width:960px}
-    .hide{display:none}
-  </style>
-</head>
-<body>
-  <div id="root">スタンプカード React版 読み込み中…</div>
+    <!-- ✅ Tailwind を読み込む（前のデザインに必須） -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- ★ 重要：bundle.js を fetch→Babel 変換→実行。Script error 問題を回避し、スタックも表示 -->
-  <script>
-    (async function boot(){
-      const root = document.getElementById('root');
-      try {
-        // 同階層の bundle.js を取得
-        const res = await fetch('./bundle.js', { cache:'no-store' });
-        if (!res.ok) throw new Error('bundle.js を取得できません: HTTP ' + res.status);
-        const src = await res.text();
+    <!-- React 18 UMD（production） -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-        // Babel で JSX 変換（env, react）
-        const out = Babel.transform(src, { presets: ['env','react'] }).code;
+    <!-- Babel（JSX/最新JS をブラウザ変換） -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-        // 実行（React/ReactDOM を引数で渡す）
-        new Function('React','ReactDOM', out + '\n//# sourceURL=bundle.transpiled.js')(window.React, window.ReactDOM);
-      } catch (e) {
-        console.error(e);
-        root.innerHTML =
-          '<div class="err"><b>実行時エラー</b>\n' +
-          (e && (e.stack || e.message) || '不明なエラー') +
-          '\n\n※ 強制再読み込み（Shift+更新）やキャッシュ削除もお試しください。</div>';
+    <style>
+      /* 前のやわらかい背景に近づける */
+      html, body { height: 100%; }
+      body {
+        background:
+          radial-gradient(1200px 480px at 70% 110%, #b6f0cf 0%, #a3e9c5 35%, rgba(163,233,197,0) 70%),
+          linear-gradient(#eaf6ff 0%, #e9f7ff 35%, #e7fbf3 100%);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
-    })();
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+  </head>
+  <body class="min-h-screen text-slate-700">
+    <div id="root" class="min-h-screen flex items-center justify-center">
+      スタンプカード React版 読み込み中…
+    </div>
 
-    // その他の取りこぼし用
-    window.addEventListener('error', e => {
-      const r = document.getElementById('root');
-      if (!r) return;
-      r.innerHTML =
-        '<div class="err"><b>実行時エラー</b>\n' +
-        (e?.error?.stack || e.message || '不明なエラー') + '</div>';
-    });
-  </script>
-</body>
+    <!-- ✅ Babel が JSX を変換して実行 -->
+    <script type="text/babel" data-presets="env,react" src="bundle.js"></script>
+
+    <!-- Service Worker（任意） -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(console.warn);
+      }
+    </script>
+  </body>
 </html>
