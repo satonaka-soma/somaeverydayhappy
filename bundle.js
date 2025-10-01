@@ -68,69 +68,17 @@ const keyframesCSS=`
 function IslandBackground(){
   return (
     <div className="pointer-events-none absolute inset-0 -z-10">
-      <div className="absolute inset-0 bg-gradient-to-b from-green-100 via-green-50 to-emerald-100"/>
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-emerald-300 to-emerald-200"
-           style={{borderTopLeftRadius:"50%",borderTopRightRadius:"50%"}}/>
+      <div className="absolute inset-0"></div>
+      <div className="absolute bottom-0 left-0 right-0 h-40"
+           style={{background:"linear-gradient(to top,#6ee7b7,#a7f3d0)", borderTopLeftRadius:"50%", borderTopRightRadius:"50%"}}/>
     </div>
   );
 }
 function NightBackground(){
   const stars=Array.from({length:120}).map((_,i)=>i);
   return (
-    <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-indigo-950 via-slate-900 to-black">
+    <div className="pointer-events-none absolute inset-0 -z-10" style={{background:"linear-gradient(to bottom,#1e1b4b,#0f172a 60%,#000)"}}>
       {stars.map(i=><span key={i} className="absolute rounded-full bg-white" style={{width:2,height:2,top:`${Math.random()*100}%`,left:`${Math.random()*100}%`,opacity:.8}}/>)}
-    </div>
-  );
-}
-function NotebookBackground(){
-  return (
-    <div className="pointer-events-none absolute inset-0 -z-10" style={{backgroundColor:"#fefefe",backgroundImage:"repeating-linear-gradient(0deg,#e5e7eb 0px,#e5e7eb 1px,transparent 1px,transparent 32px)"}}/>
-  );
-}
-function WoodBackground(){
-  return (
-    <div className="pointer-events-none absolute inset-0 -z-10" style={{background:"linear-gradient(135deg,#f8f5f0,#f3ece3 35%,#efe5d8 70%)"}}/>
-  );
-}
-function Background({theme}){
-  if(theme==="night") return <NightBackground/>;
-  if(theme==="notebook") return <NotebookBackground/>;
-  if(theme==="wood") return <WoodBackground/>;
-  return <IslandBackground/>;
-}
-
-/* ========= theme vars ========= */
-function useThemeVars(theme){
-  return useMemo(()=>{
-    if(theme==="night"){
-      return { style:{ "--fg":"#0f172a","--fgMuted":"#475569","--cardBg":"rgba(255,255,255,.85)","--chipBg":"rgba(255,255,255,.8)","--accent":"#059669" },
-               gachaText:"#0f172a", gachaShadow:"0 1px 2px rgba(255,255,255,.7)" };
-    }
-    if(theme==="wood"){
-      return { style:{ "--fg":"#3a2b25","--fgMuted":"#6b5a52","--cardBg":"rgba(255,255,255,.86)","--chipBg":"rgba(255,255,255,.8)","--accent":"#10b981" },
-               gachaText:"#231815", gachaShadow:"0 1px 2px rgba(255,255,255,.6), 0 0 8px rgba(0,0,0,.15)" };
-    }
-    if(theme==="notebook"){
-      return { style:{ "--fg":"#111827","--fgMuted":"#6b7280","--cardBg":"rgba(255,255,255,.86)","--chipBg":"rgba(255,255,255,.8)","--accent":"#10b981" },
-               gachaText:"#111827", gachaShadow:"0 1px 2px rgba(255,255,255,.7)" };
-    }
-    return { // island
-      style:{ "--fg":"#0f172a","--fgMuted":"#475569","--cardBg":"rgba(255,255,255,.85)","--chipBg":"rgba(255,255,255,.8)","--accent":"#059669" },
-      gachaText:"#0f172a", gachaShadow:"0 1px 2px rgba(255,255,255,.7)"
-    };
-  },[theme]);
-}
-
-/* ========= confetti ========= */
-function ConfettiOverlay(){
-  const pieces=Array.from({length:80}).map((_,i)=>i);
-  return (
-    <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden">
-      {pieces.map(i=>(
-        <span key={i} className="absolute animate-confetti" style={{left:`${Math.random()*100}%`,top:`-5%`,animationDelay:`${Math.random()*.8}s`,fontSize:`${12+Math.random()*16}px`,transform:`rotate(${Math.random()*360}deg)`}}>
-          {["🎊","✨","🎉","🌸","🍃"][i%5]}
-        </span>
-      ))}
     </div>
   );
 }
@@ -162,7 +110,6 @@ function App(){
   const days=useMemo(()=>generateMonth(currentMonth),[currentMonth]);
 
   const addHabit=(name,rule)=>setHabits(prev=>[...prev,{id:uid(),name,rule,created_at:todayKey(),stamps:{},restDays:{},rewards:[]}]);
-  const deleteHabit=(id)=>{ if(confirm("このカードを削除しますか？")) setHabits(prev=>prev.filter(h=>h.id!==id)); };
 
   const stampToday=(habitId)=>{
     const k=todayKey();
@@ -190,175 +137,128 @@ function App(){
     }));
   };
 
-  const addReward=(habitId,threshold,label)=>{
-    if(!threshold||threshold<=0) return;
-    setHabits(prev=>prev.map(h=>h.id===habitId?{...h,rewards:[...(h.rewards||[]),{threshold,label}].sort((a,b)=>a.threshold-b.threshold)}:h));
-  };
-  const removeReward=(habitId,idx)=>{
-    setHabits(prev=>prev.map(h=>h.id!==habitId?h:({...h,rewards:(h.rewards||[]).filter((_,i)=>i!==idx)})));
-  };
-
-  const redeemFromCard=(habitId,rewardIndex)=>{
-    const h=habits.find(x=>x.id===habitId); if(!h) return;
-    const r=(h.rewards||[])[rewardIndex]; if(!r) return;
-    if(availablePoints<r.threshold){ alert("ポイントが足りません"); return; }
-    setPointsSpent(ps=>ps+r.threshold);
-    setRedeemHistory(prev=>[{id:uid(),at:new Date().toISOString(),label:r.label,cost:r.threshold,habitId},...prev].slice(0,200));
-    setBanner({text:`「${r.label}」を受け取り！`,iconKey:"party",effect:"confetti"}); setTimeout(()=>setBanner(null),2000);
-  };
-
+  /* 入力フォーム */
   const [newName,setNewName]=useState("");
   const [newRule,setNewRule]=useState("");
   const createByButton=()=>{ addHabit(newName||"マイ・スタンプ", newRule||"毎日1回、できたらスタンプ"); setNewName(""); setNewRule(""); };
 
-  const themeVars=useThemeVars(theme);
-
   return (
-    <div className="min-h-screen relative overflow-x-hidden" style={{...themeVars.style,color:"var(--fg)"}}>
-      <Background theme={theme}/>
+    <div className="min-h-screen relative overflow-x-hidden">
+      {theme==="night"?<NightBackground/>:<IslandBackground/>}
       <style>{keyframesCSS}</style>
 
-      <header className="sticky top-0 z-20 border-b" style={{background:"rgba(255,255,255,.75)",backdropFilter:"blur(6px)"}}>
+      <header className="sticky top-0 z-20 border-b bg-white bg-opacity-70" style={{backdropFilter:"blur(6px)"}}>
         <div className="max-w-5xl mx-auto px-3 py-2">
           <div className="flex items-center gap-2">
-            <span className="text-xl md:text-2xl">🍃</span>
-            <h1 className="text-lg md:text-xl font-bold" style={{color:"var(--fg)"}}>スタンプカード</h1>
+            <span className="text-xl">🍃</span>
+            <h1 className="text-lg font-bold">スタンプカード</h1>
             <div className="ml-auto flex items-center gap-2">
-              <div className="px-3 py-1.5 rounded-2xl border" style={{background:"var(--chipBg)", color:"var(--fg)"}}>
-                <span style={{opacity:.7}}>総pt</span> <b className="text-xl md:text-2xl align-middle">{totalPoints}</b>
-                <span className="mx-1" style={{opacity:.5}}>/</span>
-                <span style={{opacity:.7}}>可</span> <b className="text-xl md:text-2xl align-middle" style={{color:"var(--accent)"}}>{availablePoints}</b>
-              </div>
+              <select value={theme} onChange={(e)=>setTheme(e.target.value)} className="h-9 px-2 rounded-lg border text-sm bg-white bg-opacity-80">
+                <option value="island">アイランド</option>
+                <option value="notebook">ノート</option>
+                <option value="wood">木目</option>
+                <option value="night">夜空</option>
+              </select>
+              <button onClick={()=>{}} className="h-9 px-3 rounded-xl border bg-white bg-opacity-80">カード</button>
+              <label className="flex items-center gap-1 text-xs ml-1 text-gray-600">
+                <input type="checkbox" checked={reduceMotion} onChange={(e)=>setReduceMotion(e.target.checked)} />
+                アニメ少なめ
+              </label>
             </div>
-          </div>
-
-          <div className="mt-2 flex gap-2 overflow-x-auto no-scrollbar flex-nowrap items-center">
-            {["cards","shop","reward_settings"].map(t=>(
-              <button key={t} onClick={()=>setView(t)}
-                className="h-9 px-3 rounded-xl border whitespace-nowrap text-sm"
-                style={{background: view===t?"var(--accent)":"var(--chipBg)", color: view===t?"#fff":"var(--fg)"}}>
-                {t==="cards"?"カード":t==="shop"?"ご褒美":"ごほうびせってい"}
-              </button>
-            ))}
-            <select value={theme} onChange={(e)=>setTheme(e.target.value)} className="h-9 px-2 rounded-lg border text-sm ml-auto" style={{background:"var(--chipBg)",color:"var(--fg)"}}>
-              <option value="island">アイランド</option>
-              <option value="notebook">ノート</option>
-              <option value="wood">木目</option>
-              <option value="night">夜空</option>
-            </select>
-            <label className="flex items-center gap-1 text-xs whitespace-nowrap ml-1" style={{color:"var(--fgMuted)"}}>
-              <input type="checkbox" checked={reduceMotion} onChange={(e)=>setReduceMotion(e.target.checked)} />
-              アニメ少なめ
-            </label>
           </div>
         </div>
       </header>
 
-      {banner && (
-        <div className={`fixed top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-2xl shadow-xl border ${reduceMotion?"":"animate-pop"}`} style={{background:"rgba(255,247,237,.95)",color:"#7c2d12"}}>
-          <span className="font-semibold align-middle">{banner.text}</span>
+      <main className="relative z-10 max-w-5xl mx-auto px-4 py-6">
+        {/* ガチャ */}
+        <div className="rounded-2xl shadow-sm border p-4 mb-4 bg-white bg-opacity-80" style={{backdropFilter:"blur(6px)"}}>
+          <div className="font-semibold mb-3 text-center">今日のガチャ</div>
+          <div className="w-full flex items-center justify-center">
+            <button onClick={()=>{}} className={`relative w-36 h-36 md:w-44 md:h-44 rounded-full shadow-xl overflow-hidden ${reduceMotion?"":"animate-spin-slow-snap"}`}>
+              <div className="absolute inset-x-0 top-3 flex items-center justify-center"><Svg.capsuleTop className="w-32 h-16"/></div>
+              <div className="absolute inset-x-0 bottom-3 flex items-center justify-center"><Svg.capsuleBottom className="w-32 h-16"/></div>
+              <div className="absolute inset-0 flex items-center justify-center font-bold text-xl" style={{color:"#0f172a",textShadow:"0 1px 2px rgba(255,255,255,.7)"}}>回す！</div>
+            </button>
+          </div>
+          <div className="text-xs mt-2 text-center text-gray-600">ポイント：スタンプ + ボーナス（結果は自動加算）</div>
         </div>
-      )}
-      {banner?.effect==="confetti" && !reduceMotion && <ConfettiOverlay/>}
 
-      {view==="cards" ? (
-        <main className="relative z-10 max-w-5xl mx-auto px-4 py-6">
-          <div className="rounded-2xl shadow-sm border p-4 mb-4" style={{background:"var(--cardBg)"}}>
-            <div className="font-semibold mb-3 text-center" style={{color:"var(--fg)"}}>今日のガチャ</div>
-            <div className="w-full flex items-center justify-center">
-              {gachaHistory[todayKey()] ? (
-                <div className="flex items-center gap-2 text-sm" style={{color:"var(--fg)"}}>
-                  <span>結果：</span>
-                  {gachaHistory[todayKey()].outcome==="miss"     && <span className="px-2 py-1 rounded-lg border" style={{background:"rgba(0,0,0,.04)"}}>残念…また明日！</span>}
-                  {gachaHistory[todayKey()].outcome==="hit"      && <span className="px-2 py-1 rounded-lg border" style={{background:"rgba(251,191,36,.2)"}}>あたり！+1pt</span>}
-                  {gachaHistory[todayKey()].outcome==="jackpot"  && <span className="px-2 py-1 rounded-lg border" style={{background:"rgba(236,72,153,.2)"}}>超大当たり！！+10pt</span>}
-                </div>
-              ) : (
-                <button onClick={()=>{
-                  if(gachaHistory[todayKey()]) return;
-                  setBanner({text:"ガチャ回転中…",iconKey:"gift"});
-                  setTimeout(()=>{
-                    const r=Math.random(); let outcome="miss", bonus=0;
-                    if(r<0.01){ outcome="jackpot"; bonus=10; }
-                    else if(r<0.11){ outcome="hit"; bonus=1; }
-                    setGachaHistory(prev=>{ const n={...prev}; n[todayKey()]={outcome,bonus,at:new Date().toISOString()}; return n; });
-                    if(outcome==="jackpot") setBanner({text:"超大当たり!! +10pt",iconKey:"gem",effect:"confetti"});
-                    else if(outcome==="hit") setBanner({text:"あたり！ +1pt",iconKey:"gift"});
-                    else setBanner(null);
-                  },1000);
-                }} className={`relative w-36 h-36 md:w-44 md:h-44 rounded-full shadow-xl overflow-hidden ${reduceMotion?"":"animate-spin-slow-snap"}`}>
-                  <div className="absolute inset-x-0 top-3 flex items-center justify-center"><Svg.capsuleTop className="w-32 h-16"/></div>
-                  <div className="absolute inset-x-0 bottom-3 flex items-center justify-center"><Svg.capsuleBottom className="w-32 h-16"/></div>
-                  <div className="absolute inset-0 flex items-center justify-center font-bold text-xl"
-                       style={{color:useThemeVars(theme).gachaText, textShadow:useThemeVars(theme).gachaShadow}}>回す！</div>
-                </button>
-              )}
+        {/* 新しいカード */}
+        <div className="rounded-2xl shadow-sm border p-4 mb-6 bg-white bg-opacity-80" style={{backdropFilter:"blur(6px)"}}>
+          <div className="font-semibold mb-3">新しいスタンプカード</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="名前（例：英語シャドーイング）" className="px-3 py-2 rounded-xl border w-full bg-white bg-opacity-80"/>
+            <input value={newRule} onChange={e=>setNewRule(e.target.value)} placeholder="ルール（例：1日15分やったら押す）" className="px-3 py-2 rounded-xl border w-full bg-white bg-opacity-80"/>
+            <button onClick={createByButton} className="px-4 py-2 rounded-xl bg-emerald-600 text-white">作成</button>
+          </div>
+        </div>
+
+        {/* 月ナビ */}
+        <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
+          <div className="flex items-center gap-2">
+            <button onClick={()=>setCurrentMonth(new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1))} className="h-9 px-3 rounded-xl border bg-white bg-opacity-80">← 前月</button>
+            <div className="font-semibold">{currentMonth.getFullYear()}年 {currentMonth.getMonth()+1}月</div>
+            <button onClick={()=>setCurrentMonth(new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1))} className="h-9 px-3 rounded-xl border bg-white bg-opacity-80">翌月 →</button>
+            <button onClick={()=>setCurrentMonth(new Date())} className="h-9 px-3 rounded-xl border bg-white bg-opacity-80">今月</button>
+          </div>
+        </div>
+
+        {/* 1枚のカード（サンプル） */}
+        <div className="rounded-3xl border shadow-sm overflow-hidden bg-white bg-opacity-80" style={{backdropFilter:"blur(6px)"}}>
+          <div className="p-4 flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="text-lg font-semibold truncate flex items-center gap-2">
+                <span className="inline-block px-2 py-0.5 rounded-full text-xs" style={{background:"rgba(16,185,129,.15)",color:"#059669"}}>連続 0 日</span>
+                <span className="truncate">あ</span>
+              </div>
+              <div className="text-sm text-gray-700 truncate">あ</div>
             </div>
-            <div className="text-xs mt-2 text-center" style={{color:"var(--fgMuted)"}}>ポイント：スタンプ + ボーナス（結果は自動加算）</div>
+            <div className="text-right">
+              <div className="text-xs text-gray-600">通算</div>
+              <div className="text-2xl font-extrabold">0</div>
+            </div>
+            <button className="px-4 py-2 rounded-xl border ml-2 bg-white">できた！</button>
           </div>
 
-          <div className="rounded-2xl shadow-sm border p-4 mb-6" style={{background:"var(--cardBg)"}}>
-            <div className="font-semibold mb-3" style={{color:"var(--fg)"}}>新しいスタンプカード</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input placeholder="名前（例：英語シャドーイング）" className="px-3 py-2 rounded-xl border w-full" style={{background:"var(--chipBg)",color:"var(--fg)"}}/>
-              <input placeholder="ルール（例：1日15分やったら押す）" className="px-3 py-2 rounded-xl border w-full" style={{background:"var(--chipBg)",color:"var(--fg)"}}/>
-              <button className="px-4 py-2 rounded-xl" style={{background:"var(--accent)",color:"#fff"}}>作成</button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
-            <div className="flex items-center gap-2">
-              <button className="h-9 px-3 rounded-xl border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>← 前月</button>
-              <div className="font-semibold" style={{color:"var(--fg)"}}>{currentMonth.getFullYear()}年 {currentMonth.getMonth()+1}月</div>
-              <button className="h-9 px-3 rounded-xl border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>翌月 →</button>
-              <button className="h-9 px-3 rounded-xl border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>今月</button>
-            </div>
-            <div className="text-sm rounded-xl px-3 py-1.5 border" style={{background:"var(--chipBg)",color:"var(--fg)"}}>
-              総pt: <b className="text-lg align-middle">{totalPoints}</b> / 使用済: {pointsSpent} / 使用可能: <b className="text-lg align-middle" style={{color:"var(--accent)"}}>{availablePoints}</b>
-            </div>
-          </div>
-
-          {/* ここからカレンダー（縦長対策として .aspect-square が効く） */}
-          <div className="rounded-3xl border shadow-sm overflow-hidden" style={{background:"var(--cardBg)"}}>
-            <div className="p-4">
-              <div className="grid grid-cols-7 gap-1 text-xs mb-1 font-medium" style={{color:"var(--fg)"}}>
+          <div className="px-4 pb-4">
+            <div className="rounded-3xl p-3 border shadow-inner" style={{background:"linear-gradient(135deg,#f7f5ef,#efe9dc)"}}>
+              {/* 曜日ヘッダ */}
+              <div className="grid grid-cols-7 gap-1 mb-1 font-medium" style={{fontSize:"12px",color:"#0f172a"}}>
                 {["月","火","水","木","金","土","日"].map(w=><div key={w} className="text-center">{w}</div>)}
               </div>
+
+              {/* カレンダー：セルは “パディング100%” で正方形固定 */}
               <div className="grid grid-cols-7 gap-1">
                 {generateMonth(currentMonth).map((d,idx)=>{
                   const k=keyOf(d);
-                  const marked=false, rest=false;
                   const isToday=k===todayKey();
                   const isOtherMonth=d.getMonth()!==currentMonth.getMonth();
-                  const special=null;
-                  const iconKey=marked?NORMAL_ICONS[idx%NORMAL_ICONS.length]:null;
+
                   return (
                     <div key={k} className="relative">
-                      <button
-                        className={`relative w-full aspect-square rounded-2xl border flex items-center justify-center select-none ${isOtherMonth?'opacity-60':''} ${isToday?'ring-2':''}`}
-                        style={{
-                          background: marked? "rgba(16,185,129,.92)": (rest? "rgba(16,185,129,.10)":"rgba(16,185,129,.12)"),
-                          borderColor: marked? "#065f46":"rgba(16,185,129,.35)",
-                          color: marked? "#fff":"var(--fg)"
-                        }}
-                      >
-                        <span className="absolute top-1 left-1 text-[12px]" style={{opacity: marked ? .9 : .8}}>{d.getDate()}</span>
-                        {iconKey ? (
-                          <div className={marked?"animate-sparkle":""}>{React.createElement(Svg[iconKey],{className:"w-10 h-10"})}</div>
-                        ) : (!rest && <Svg.leaf className="w-8 h-8" style={{opacity:.2}}/>)}
-                      </button>
+                      {/* 正方形ボックス */}
+                      <div className="relative w-full" style={{paddingTop:"100%"}}>
+                        <button
+                          className={`absolute inset-0 rounded-2xl border flex items-center justify-center select-none ${isOtherMonth?'opacity-60':''} ${isToday?'ring-2 ring-yellow-400':''}`}
+                          style={{background:"rgba(16,185,129,.12)", borderColor:"rgba(16,185,129,.35)", color:"#0f172a"}}
+                          title={fmtJP(k)}
+                        >
+                          <span className="absolute" style={{top:4,left:6,fontSize:"12px",opacity:.8}}>{d.getDate()}</span>
+                          <Svg.leaf className="w-8 h-8" style={{opacity:.2}}/>
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
               </div>
+
+              <div className="mt-2" style={{fontSize:"11px",color:"#475569"}}>※ 休息日は二日後以降（当日・明日は不可）。PC:右クリック / スマホ:長押し</div>
             </div>
           </div>
-          {/* カレンダーここまで */}
+        </div>
+      </main>
 
-        </main>
-      ) : null}
-
-      <footer className="relative z-10 max-w-5xl mx-auto px-4 py-8 text-xs" style={{color:"var(--fgMuted)"}}>
+      <footer className="relative z-10 max-w-5xl mx-auto px-4 py-8 text-xs text-gray-600">
         ローカル保存（localStorage）。端末を変えると共有されません。
       </footer>
     </div>
