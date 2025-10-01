@@ -1,50 +1,69 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
   <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>スタンプカード React版</title>
 
-    <!-- GitHub Pages のサブパス対応 -->
-    <base href="/somadayoooo/">
+    <!-- React & Babel -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
 
-    <!-- PWA（そのまま） -->
+    <!-- Tailwind CSS v2.2（前にうまくいってた固定CSS版） -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+    />
+
+    <!-- PWA（任意。既存ファイルをそのまま） -->
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon-192.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="icon-512.png" sizes="512x512" />
     <meta name="theme-color" content="#10b981" />
 
-    <!-- ✅ Tailwind を読み込む（前のデザインに必須） -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- React 18 UMD（production） -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-    <!-- Babel（JSX/最新JS をブラウザ変換） -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
     <style>
-      /* 前のやわらかい背景に近づける */
+      /* 背景（前のやわらか緑グラデ風） */
       html, body { height: 100%; }
       body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, Arial, sans-serif;
         background:
           radial-gradient(1200px 480px at 70% 110%, #b6f0cf 0%, #a3e9c5 35%, rgba(163,233,197,0) 70%),
           linear-gradient(#eaf6ff 0%, #e9f7ff 35%, #e7fbf3 100%);
+        color: #334155; /* slate-700 */
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
+      #root { min-height: 100vh; }
+
+      /* 読み込み中プレースホルダー（左上に小さく） */
+      #loading-text {
+        position: absolute;
+        top: 8px;
+        left: 12px;
+        font-size: 14px;
+        color: #374151; /* gray-700 */
+      }
+
+      /* ★ Tailwind v2.2 には aspect-square が無い → 追加 */
+      .aspect-square { aspect-ratio: 1 / 1; }
+      /* 旧ブラウザ用の軽いフォールバック（必要なら）
+      .aspect-square::before { content:""; float:left; padding-top:100%; }
+      .aspect-square::after  { content:""; display:block; clear:both; } */
+
+      /* スクロールバー非表示（なくてもOK） */
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
   </head>
-  <body class="min-h-screen text-slate-700">
-    <div id="root" class="min-h-screen flex items-center justify-center">
-      スタンプカード React版 読み込み中…
+  <body>
+    <div id="root">
+      <div id="loading-text">スタンプカード React版 読み込み中…</div>
     </div>
 
-    <!-- ✅ Babel が JSX を変換して実行 -->
-    <script type="text/babel" data-presets="env,react" src="bundle.js"></script>
+    <!-- JSX を Babel でブラウザ変換して実行 -->
+    <script type="text/babel" data-presets="env,react" src="./bundle.js"></script>
 
     <!-- Service Worker（任意） -->
     <script>
